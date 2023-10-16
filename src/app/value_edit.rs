@@ -1,18 +1,18 @@
-use crossterm::event::Event;
+use crossterm::event::KeyEvent;
 use ratatui::prelude::Rect;
 use tui_textarea::{Input, Key, TextArea};
 
-use super::{main_titled_block, Frame};
+use crate::ui::{main_titled_block, Frame};
 
-pub(super) struct ValueEditorScene {
+pub struct ValueEdit {
     is_in_editing_mode: bool,
     editor_textarea: TextArea<'static>,
     key: String,
     original_key_value: String,
 }
 
-impl ValueEditorScene {
-    pub(super) fn new(key: String, value: String) -> Self {
+impl ValueEdit {
+    pub fn new(key: String, value: String) -> Self {
         Self {
             is_in_editing_mode: false,
             editor_textarea: TextArea::from(value.split('\n')),
@@ -21,7 +21,7 @@ impl ValueEditorScene {
         }
     }
 
-    pub(super) fn draw(&mut self, frame: &mut Frame, layout_rect: Rect) {
+    pub fn draw(&mut self, frame: &mut Frame, layout_rect: Rect) {
         let mode = if self.is_in_editing_mode {
             "editing"
         } else {
@@ -34,8 +34,8 @@ impl ValueEditorScene {
         frame.render_widget(self.editor_textarea.widget(), layout_rect)
     }
 
-    /// Handle event, returns whether scene is finished or not.
-    pub(super) fn handle_event(&mut self, event: Event) -> bool {
+    /// Returns whether scene is finished or not.
+    pub fn update(&mut self, event: KeyEvent) -> bool {
         if self.is_in_editing_mode {
             match event.into() {
                 Input { key: Key::Esc, .. } => {
@@ -48,8 +48,7 @@ impl ValueEditorScene {
         } else {
             match event.into() {
                 Input {
-                    key: Key::Char('e'),
-                    ..
+                    key: Key::Enter, ..
                 } => {
                     self.is_in_editing_mode = true;
                 }
@@ -60,11 +59,19 @@ impl ValueEditorScene {
         false
     }
 
-    pub(super) fn help(&self) -> String {
+    pub fn help(&self) -> String {
         if self.is_in_editing_mode {
             "(Esc) exit editing mode".into()
         } else {
-            "(e) enter editing mode, (Esc) return to key selection".into()
+            "(Enter) enter editing mode, (Esc) return to key selection".into()
         }
+    }
+
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    pub fn editor_content(&self) -> String {
+        self.editor_textarea.lines().join("\n")
     }
 }
