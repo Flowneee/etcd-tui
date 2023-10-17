@@ -263,10 +263,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "etcd-tui-rs"
+name = "etcd-tui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "crossterm",
  "etcd-client",
  "futures",

@@ -1,26 +1,26 @@
-use std::{io::stderr, panic};
+use std::panic;
 
 use anyhow::{bail, Result};
-use crossterm::{
-    event::KeyEvent,
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
+
 use etcd_client::{Client, GetOptions};
-use futures::{task::SpawnExt, FutureExt, TryFutureExt};
-use ratatui::prelude::CrosstermBackend;
+use futures::TryFutureExt;
+
 use tokio::{
     pin, spawn,
     sync::mpsc::{unbounded_channel, UnboundedSender},
 };
 use tui::Tui;
 
-use self::{app::App, event::Event};
+use crate::components::Component;
+
+use self::{app::App, events::Event};
 
 mod app;
-mod event;
+mod components;
+mod events;
 mod tui;
 mod ui;
+mod utils;
 
 #[derive(Clone)]
 pub struct SharedState {
@@ -42,6 +42,10 @@ impl SharedState {
 
     fn send_event(&self, event: Event) -> Result<()> {
         Ok(self.event_tx.send(event)?)
+    }
+
+    fn tick(&self) -> Result<()> {
+        self.send_event(Event::Tick)
     }
 
     async fn load_keys(&self) -> Result<Vec<String>> {
@@ -80,20 +84,20 @@ impl SharedState {
 async fn main() -> Result<()> {
     let (event_tx, mut event_rx) = unbounded_channel();
     let shared_state = SharedState::new(event_tx).await?;
-    let mut app = App::new(shared_state.load_keys().await?);
+    let mut app = App::new(shared_state.clone());
 
     let mut tui = Tui::new()?;
     tui.enter()?;
 
-    let event_handler = spawn(event::event_handler(shared_state.clone()))
+    let event_handler = spawn(events::event_handler(shared_state.clone()))
         .err_into()
         .and_then(|x| async { x });
     pin!(event_handler);
 
     while !app.should_quit() {
-        tui.terminal_mut().draw(|f| app.draw(f))?;
+        tui.terminal_mut().draw(|f| app.draw(f, f.size()))?;
 
-        let mut event = tokio::select! {
+        let event = tokio::select! {
             event = event_rx.recv() => {
                 event.unwrap_or_else(|| Event::Quit(Ok(())))
             },
@@ -101,7 +105,10 @@ async fn main() -> Result<()> {
                 Event::Quit(eh)
             }
         };
-        app.update(event, &shared_state).await;
+
+        if let Err(err) = app.handle_event(event) {
+            app.quit(Err(err));
+        }
     }
 
     tui.exit()?;

@@ -2,7 +2,7 @@ use std::{io::stderr, panic};
 
 use anyhow::Result;
 use crossterm::{
-    execute,
+    cursor, execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::prelude::CrosstermBackend;
@@ -26,7 +26,7 @@ impl Tui {
 
     // copypasta from ratatui book
     pub fn enter(&mut self) -> Result<()> {
-        execute!(stderr(), EnterAlternateScreen)?;
+        execute!(stderr(), EnterAlternateScreen, cursor::Hide)?;
         enable_raw_mode()?;
 
         let panic_hook = panic::take_hook();
@@ -35,20 +35,18 @@ impl Tui {
             panic_hook(panic);
         }));
 
-        self.terminal.hide_cursor()?;
         self.terminal.clear()?;
         Ok(())
     }
 
     pub fn reset() -> Result<()> {
-        execute!(stderr(), LeaveAlternateScreen)?;
+        execute!(stderr(), LeaveAlternateScreen, cursor::Show)?;
         disable_raw_mode()?;
         Ok(())
     }
 
     pub fn exit(&mut self) -> Result<()> {
         Self::reset()?;
-        self.terminal.show_cursor()?;
         Ok(())
     }
 }

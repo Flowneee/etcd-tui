@@ -9,8 +9,10 @@ use crate::SharedState;
 
 pub enum Event {
     Tick,
-    Key(KeyEvent),
-    RestTerm(CrosstermEvent),
+    Keyboard(KeyEvent),
+    KeyLoaded { key: String, value: String },
+    KeyEditDone,
+    Tui(CrosstermEvent),
     Quit(Result<()>),
 }
 
@@ -27,8 +29,8 @@ pub async fn event_handler(shared_state: SharedState) -> Result<()> {
             }
             ct_event = term_event_stream.select_next_some() => {
                 match ct_event? {
-                    CrosstermEvent::Key(input) => Event::Key(input),
-                    rest => Event::RestTerm(rest)
+                    CrosstermEvent::Key(input) => Event::Keyboard(input),
+                    rest => Event::Tui(rest)
                 }
             }
         };
