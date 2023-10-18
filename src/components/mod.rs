@@ -1,6 +1,6 @@
 pub use self::{
-    context_help::ContextHelp, foreground_task::ForegroundTask, key_selector::KeySelector,
-    value_editor::ValueEditor,
+    confirmation_popup::ConfirmationPopup, context_help::ContextHelp,
+    foreground_task::ForegroundTask, key_selector::KeySelector, value_editor::ValueEditor,
 };
 
 use anyhow::Result;
@@ -10,6 +10,7 @@ use ratatui::prelude::Rect;
 
 use crate::{events::KeyEventState, ui::Frame};
 
+mod confirmation_popup;
 mod context_help;
 mod foreground_task;
 mod key_selector;

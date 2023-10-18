@@ -10,7 +10,7 @@ use crate::{
     SharedState,
 };
 
-use super::{Component, ForegroundTask};
+use super::{confirmation_popup::ConfirmationResult, Component, ConfirmationPopup, ForegroundTask};
 
 pub struct ValueEditor {
     shared_state: SharedState,
@@ -22,6 +22,7 @@ pub struct ValueEditor {
     key: String,
     original_key_value: String,
 
+    confirmation_popup: Option<ConfirmationPopup>,
     put_key_task: ForegroundTask<Result<()>>,
 }
 
@@ -37,6 +38,7 @@ impl ValueEditor {
             key: String::new(),
             original_key_value: String::new(),
 
+            confirmation_popup: None,
             put_key_task: ForegroundTask::new("Saving key", shared_state),
         }
     }
@@ -82,12 +84,21 @@ impl ValueEditor {
     fn edit_done(&self) -> Result<()> {
         self.shared_state.send_event(Event::KeyEditDone)
     }
+
+    fn prompt_save_confirmation(&mut self) {
+        let mut popup = ConfirmationPopup::new("Save key?", self.shared_state.clone());
+        popup.show();
+        self.confirmation_popup = Some(popup);
+    }
 }
 
 impl Component for ValueEditor {
     fn handle_key_event(&mut self, event: KeyEvent) -> Result<KeyEventState> {
         if self.is_visible() {
             key_event!(self.put_key_task.handle_key_event(event));
+            if let Some(ref mut x) = self.confirmation_popup {
+                key_event!(x.handle_key_event(event));
+            }
 
             if self.is_in_editing_mode {
                 match event.into() {
@@ -107,7 +118,7 @@ impl Component for ValueEditor {
                     }
                     Input { key: Key::Esc, .. } => {
                         if self.value_has_changed() {
-                            self.put_key();
+                            self.prompt_save_confirmation();
                         } else {
                             self.edit_done()?;
                         }
@@ -122,6 +133,21 @@ impl Component for ValueEditor {
     }
 
     fn update(&mut self) -> Result<()> {
+        if let Some(ref mut x) = self.confirmation_popup {
+            if let Some(result) = x.status() {
+                match result {
+                    ConfirmationResult::Yes => {
+                        self.put_key();
+                    }
+                    ConfirmationResult::No => {
+                        self.edit_done()?;
+                    }
+                    ConfirmationResult::Cancel => {}
+                }
+                self.confirmation_popup = None;
+            }
+        }
+
         if let Some(result) = self.put_key_task.try_ready() {
             result?;
             self.edit_done()?;
@@ -139,6 +165,9 @@ impl Component for ValueEditor {
             frame.render_widget(self.editor_textarea.widget(), rect);
 
             self.put_key_task.draw(frame, rect);
+            if let Some(ref mut x) = self.confirmation_popup {
+                x.draw(frame, rect);
+            }
         }
     }
 
@@ -152,6 +181,10 @@ impl Component for ValueEditor {
 
     fn context_help(&self) -> Vec<String> {
         if self.is_visible() {
+            if let Some(ref x) = self.confirmation_popup {
+                return x.context_help();
+            }
+
             if self.is_in_editing_mode {
                 vec!["(Esc) exit editing mode".into()]
             } else {
