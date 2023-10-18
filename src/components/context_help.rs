@@ -1,6 +1,3 @@
-use anyhow::Result;
-
-use crossterm::event::KeyEvent;
 use ratatui::{
     prelude::Rect,
     widgets::{Padding, Paragraph},

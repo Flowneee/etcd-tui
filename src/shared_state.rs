@@ -57,6 +57,11 @@ impl SharedState {
         Ok(())
     }
 
+    pub async fn delete_key(&self, key: &str) -> Result<()> {
+        let _ = self.etcd_client().delete(key, None).await?;
+        Ok(())
+    }
+
     pub fn send_event(&self, event: Event) -> Result<()> {
         Ok(self.event_tx.send(event)?)
     }

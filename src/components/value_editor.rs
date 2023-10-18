@@ -112,7 +112,8 @@ impl Component for ValueEditor {
             } else {
                 match event.into() {
                     Input {
-                        key: Key::Enter, ..
+                        key: Key::Enter | Key::Char('e'),
+                        ..
                     } => {
                         self.is_in_editing_mode = true;
                     }
@@ -189,7 +190,7 @@ impl Component for ValueEditor {
                 vec!["(Esc) exit editing mode".into()]
             } else {
                 vec![
-                    "(Enter) enter editing mode".into(),
+                    "(e/Enter) enter editing mode".into(),
                     "(Esc) return to key selection".into(),
                 ]
             }

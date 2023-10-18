@@ -16,6 +16,7 @@ mod foreground_task;
 mod key_selector;
 mod value_editor;
 
+#[allow(unused)]
 pub trait Component {
     fn handle_key_event(&mut self, event: KeyEvent) -> Result<KeyEventState> {
         Ok(KeyEventState::NotConsumed)

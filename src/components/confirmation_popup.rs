@@ -3,7 +3,7 @@ use crossterm::event::KeyEvent;
 use ratatui::{
     prelude::{Alignment, Constraint, Direction, Layout, Rect},
     style::Stylize,
-    widgets::{Block, Borders, Clear, Padding, Paragraph},
+    widgets::{Borders, Clear, Paragraph},
 };
 use tui_textarea::{Input, Key};
 
@@ -20,6 +20,12 @@ pub enum ConfirmationResult {
     Yes,
     No,
     Cancel,
+}
+
+impl ConfirmationResult {
+    pub fn is_yes(&self) -> bool {
+        matches!(self, Self::Yes)
+    }
 }
 
 pub struct ConfirmationPopup {
