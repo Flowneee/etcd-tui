@@ -5,13 +5,12 @@ use ratatui::prelude::Rect;
 use tui_textarea::{Input, Key, TextArea};
 
 use crate::{
-    events::Event,
-    ui::{draw_wait_popup, main_titled_block, Frame},
-    utils::AsyncTask,
+    events::{Event, KeyEventState},
+    ui::{main_titled_block, Frame},
     SharedState,
 };
 
-use super::Component;
+use super::{Component, ForegroundTask};
 
 pub struct ValueEditor {
     shared_state: SharedState,
@@ -23,7 +22,7 @@ pub struct ValueEditor {
     key: String,
     original_key_value: String,
 
-    put_key_task: AsyncTask<Result<()>>,
+    put_key_task: ForegroundTask<Result<()>>,
 }
 
 impl ValueEditor {
@@ -38,7 +37,7 @@ impl ValueEditor {
             key: String::new(),
             original_key_value: String::new(),
 
-            put_key_task: AsyncTask::new(shared_state),
+            put_key_task: ForegroundTask::new("Saving key", shared_state),
         }
     }
 
@@ -67,12 +66,12 @@ impl ValueEditor {
     }
 
     fn title_status(&self) -> String {
-        let mut mode = if self.is_in_editing_mode {
+        let mode = if self.is_in_editing_mode {
             "editing"
         } else {
             "not editing"
         };
-        let mut changed = if self.value_has_changed() {
+        let changed = if self.value_has_changed() {
             "changed"
         } else {
             "not changed"
@@ -86,8 +85,10 @@ impl ValueEditor {
 }
 
 impl Component for ValueEditor {
-    fn handle_key_event(&mut self, event: KeyEvent) -> Result<()> {
+    fn handle_key_event(&mut self, event: KeyEvent) -> Result<KeyEventState> {
         if self.is_visible() {
+            key_event!(self.put_key_task.handle_key_event(event));
+
             if self.is_in_editing_mode {
                 match event.into() {
                     Input { key: Key::Esc, .. } => {
@@ -114,8 +115,10 @@ impl Component for ValueEditor {
                     _ => {}
                 }
             }
+            Ok(KeyEventState::Consumed)
+        } else {
+            Ok(KeyEventState::NotConsumed)
         }
-        Ok(())
     }
 
     fn update(&mut self) -> Result<()> {
@@ -135,9 +138,7 @@ impl Component for ValueEditor {
 
             frame.render_widget(self.editor_textarea.widget(), rect);
 
-            if self.put_key_task.is_active() {
-                draw_wait_popup("Saving key", frame);
-            }
+            self.put_key_task.draw(frame, rect);
         }
     }
 

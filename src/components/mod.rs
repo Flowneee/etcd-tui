@@ -1,26 +1,36 @@
-pub use self::{context_help::ContextHelp, key_selector::KeySelector, value_editor::ValueEditor};
+pub use self::{
+    context_help::ContextHelp, foreground_task::ForegroundTask, key_selector::KeySelector,
+    value_editor::ValueEditor,
+};
 
 use anyhow::Result;
 
 use crossterm::event::KeyEvent;
 use ratatui::prelude::Rect;
 
-use crate::ui::Frame;
+use crate::{events::KeyEventState, ui::Frame};
 
 mod context_help;
+mod foreground_task;
 mod key_selector;
 mod value_editor;
 
 pub trait Component {
-    fn handle_key_event(&mut self, event: KeyEvent) -> Result<()>;
+    fn handle_key_event(&mut self, event: KeyEvent) -> Result<KeyEventState> {
+        Ok(KeyEventState::NotConsumed)
+    }
 
-    fn update(&mut self) -> Result<()>;
+    fn update(&mut self) -> Result<()> {
+        Ok(())
+    }
 
-    fn draw(&mut self, frame: &mut Frame, rect: Rect);
+    fn draw(&mut self, frame: &mut Frame, rect: Rect) {}
 
-    fn set_visibility(&mut self, value: bool);
+    fn set_visibility(&mut self, value: bool) {}
 
-    fn is_visible(&self) -> bool;
+    fn is_visible(&self) -> bool {
+        false
+    }
 
     fn context_help(&self) -> Vec<String> {
         vec![]

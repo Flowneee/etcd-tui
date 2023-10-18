@@ -5,7 +5,7 @@ use ratatui::prelude::{Constraint, Direction, Layout, Rect};
 
 use crate::{
     components::{Component, ContextHelp, KeySelector, ValueEditor},
-    events::Event,
+    events::{Event, KeyEventState},
     ui::Frame,
     SharedState,
 };
@@ -45,7 +45,7 @@ impl App {
 
     pub fn handle_event(&mut self, event: Event) -> Result<()> {
         match event {
-            Event::Keyboard(kb) => self.handle_key_event(kb)?,
+            Event::Keyboard(kb) => drop(self.handle_key_event(kb)?),
             Event::Quit(x) => {
                 self.app_result = Some(x);
             }
@@ -70,10 +70,10 @@ impl App {
 }
 
 impl Component for App {
-    fn handle_key_event(&mut self, event: KeyEvent) -> Result<()> {
-        self.key_selector.handle_key_event(event)?;
-        self.value_editor.handle_key_event(event)?;
-        Ok(())
+    fn handle_key_event(&mut self, event: KeyEvent) -> Result<KeyEventState> {
+        key_event!(self.key_selector.handle_key_event(event));
+        key_event!(self.value_editor.handle_key_event(event));
+        Ok(KeyEventState::Consumed)
     }
 
     fn update(&mut self) -> Result<()> {

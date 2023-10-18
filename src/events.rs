@@ -7,6 +7,19 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::SharedState;
 
+macro_rules! key_event {
+    ($x:expr) => {
+        if matches!($x?, $crate::events::KeyEventState::Consumed) {
+            return Ok($crate::events::KeyEventState::Consumed);
+        }
+    };
+}
+
+pub enum KeyEventState {
+    Consumed,
+    NotConsumed,
+}
+
 pub enum Event {
     Tick,
     Keyboard(KeyEvent),

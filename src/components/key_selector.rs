@@ -12,13 +12,12 @@ use ratatui::{
 use tui_textarea::{Input, Key};
 
 use crate::{
-    events::Event,
-    ui::{draw_wait_popup, main_titled_block, Frame},
-    utils::AsyncTask,
+    events::{Event, KeyEventState},
+    ui::{main_titled_block, Frame},
     SharedState,
 };
 
-use super::Component;
+use super::{Component, ForegroundTask};
 
 pub struct KeySelector {
     shared_state: SharedState,
@@ -28,8 +27,8 @@ pub struct KeySelector {
     keys: Vec<String>,
     list_state: ListState,
 
-    get_key_task: AsyncTask<Result<(String, String)>>,
-    load_keys_task: AsyncTask<Result<Vec<String>>>,
+    get_key_task: ForegroundTask<Result<(String, String)>>,
+    load_key_list_task: ForegroundTask<Result<Vec<String>>>,
 }
 
 impl KeySelector {
@@ -42,8 +41,8 @@ impl KeySelector {
             keys: vec![],
             list_state: ListState::default(),
 
-            get_key_task: AsyncTask::new(shared_state.clone()),
-            load_keys_task: AsyncTask::new(shared_state),
+            get_key_task: ForegroundTask::new("Loading key", shared_state.clone()),
+            load_key_list_task: ForegroundTask::new("Loading key list", shared_state),
         }
     }
 
@@ -62,49 +61,48 @@ impl KeySelector {
     }
 
     fn load_keys(&mut self) {
-        self.load_keys_task
+        self.load_key_list_task
             .start(|s| async move { s.load_keys().await });
     }
 }
 
 impl Component for KeySelector {
-    fn handle_key_event(&mut self, event: KeyEvent) -> Result<()> {
+    fn handle_key_event(&mut self, event: KeyEvent) -> Result<KeyEventState> {
         if self.is_visible() {
-            if !self.get_key_task.is_active() {
-                let selected_key_id = self.list_state.selected();
-                match event.into() {
-                    Input { key: Key::Down, .. } => {
-                        self.list_state.select(Some(
-                            selected_key_id
-                                .map_or(0, |x| min(x.saturating_add(1), self.keys.len() - 1)),
-                        ));
-                    }
-                    Input { key: Key::Up, .. } => {
-                        self.list_state.select(Some(
-                            selected_key_id.map_or(0, |x| max(x.saturating_sub(1), 0)),
-                        ));
-                    }
-                    Input {
-                        key: Key::Enter, ..
-                    } => {
-                        self.get_selected_key();
-                    }
-                    Input { key: Key::Esc, .. } => {
-                        self.shared_state.send_event(Event::Quit(Ok(())))?;
-                    }
-                    _ => {}
+            key_event!(self.get_key_task.handle_key_event(event));
+            key_event!(self.load_key_list_task.handle_key_event(event));
+
+            let selected_key_id = self.list_state.selected();
+            match event.into() {
+                Input { key: Key::Down, .. } => {
+                    self.list_state.select(Some(
+                        selected_key_id
+                            .map_or(0, |x| min(x.saturating_add(1), self.keys.len() - 1)),
+                    ));
                 }
-            } else {
-                if matches!(event.into(), Input { key: Key::Esc, .. }) {
-                    self.get_key_task.drop_active();
+                Input { key: Key::Up, .. } => {
+                    self.list_state.select(Some(
+                        selected_key_id.map_or(0, |x| max(x.saturating_sub(1), 0)),
+                    ));
                 }
+                Input {
+                    key: Key::Enter, ..
+                } => {
+                    self.get_selected_key();
+                }
+                Input { key: Key::Esc, .. } => {
+                    self.shared_state.send_event(Event::Quit(Ok(())))?;
+                }
+                _ => {}
             }
+            Ok(KeyEventState::Consumed)
+        } else {
+            Ok(KeyEventState::NotConsumed)
         }
-        Ok(())
     }
 
     fn update(&mut self) -> Result<()> {
-        if let Some(result) = self.load_keys_task.try_ready() {
+        if let Some(result) = self.load_key_list_task.try_ready() {
             self.keys = result?;
         }
 
@@ -131,18 +129,21 @@ impl Component for KeySelector {
 
             frame.render_stateful_widget(widget, rect, &mut self.list_state);
 
-            if self.get_key_task.is_active() {
-                draw_wait_popup("Loading key", frame);
-            }
-
-            if self.load_keys_task.is_active() {
-                draw_wait_popup("Loading keys", frame);
-            }
+            self.get_key_task.draw(frame, rect);
+            self.load_key_list_task.draw(frame, rect);
         }
     }
 
     fn context_help(&self) -> Vec<String> {
         if self.is_visible() {
+            if self.get_key_task.is_visible() {
+                return self.get_key_task.context_help();
+            }
+
+            if self.load_key_list_task.is_visible() {
+                return self.load_key_list_task.context_help();
+            }
+
             vec![
                 "(Up/Down) scroll list".into(),
                 "(Enter) select key".into(),
@@ -163,7 +164,7 @@ impl Component for KeySelector {
 
     fn show(&mut self) {
         self.is_visible = true;
-        if !self.load_keys_task.is_active() {
+        if !self.load_key_list_task.is_active() {
             self.load_keys();
         }
     }

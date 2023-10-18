@@ -26,14 +26,6 @@ impl ContextHelp {
 }
 
 impl Component for ContextHelp {
-    fn handle_key_event(&mut self, _: KeyEvent) -> Result<()> {
-        Ok(())
-    }
-
-    fn update(&mut self) -> Result<()> {
-        Ok(())
-    }
-
     fn draw(&mut self, frame: &mut Frame, rect: Rect) {
         if self.is_visible() {
             let help = Paragraph::new(self.help.clone().join(", "))
@@ -41,8 +33,6 @@ impl Component for ContextHelp {
             frame.render_widget(help, rect);
         }
     }
-
-    fn set_visibility(&mut self, _: bool) {}
 
     fn is_visible(&self) -> bool {
         true

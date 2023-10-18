@@ -1,18 +1,21 @@
 use futures::Future;
-use tokio::{spawn, sync::oneshot};
+use tokio::{spawn, sync::oneshot, task::JoinHandle};
 
 use crate::SharedState;
 
 pub struct AsyncTask<T> {
     shared_state: SharedState,
-    rx: Option<oneshot::Receiver<T>>,
+    task: Option<(oneshot::Receiver<T>, JoinHandle<()>)>,
 }
 
-impl<T: Send + 'static> AsyncTask<T> {
+impl<T> AsyncTask<T>
+where
+    T: Send + 'static,
+{
     pub fn new(shared_state: SharedState) -> Self {
         Self {
             shared_state,
-            rx: None,
+            task: None,
         }
     }
 
@@ -22,30 +25,39 @@ impl<T: Send + 'static> AsyncTask<T> {
         Fut: Future<Output = T> + Send,
     {
         let (tx, rx) = oneshot::channel();
-        self.rx = Some(rx);
         let shared_state = self.shared_state.clone();
 
-        let _ = spawn(async move {
+        let handle = spawn(async move {
             let fut = fut_fn(shared_state.clone());
             let result = fut.await;
 
             let _ = tx.send(result);
             let _ = shared_state.tick();
         });
+
+        self.task = Some((rx, handle));
     }
 
     pub fn is_active(&self) -> bool {
-        self.rx.is_some()
+        self.task.is_some()
     }
 
     pub fn try_ready(&mut self) -> Option<T> {
-        let rx = self.rx.as_mut()?;
-        let x = rx.try_recv().ok()?;
-        self.rx = None;
+        let task = self.task.as_mut()?;
+        let x = task.0.try_recv().ok()?;
+        self.task = None;
         Some(x)
     }
 
-    pub fn drop_active(&mut self) -> bool {
-        self.rx.take().is_some()
+    /// Abort currently active task.
+    ///
+    /// If not started, do nothing.
+    pub fn abort(&mut self) -> bool {
+        if let Some((_, handle)) = self.task.take() {
+            handle.abort();
+            true
+        } else {
+            false
+        }
     }
 }
