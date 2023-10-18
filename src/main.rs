@@ -2,7 +2,8 @@ use std::panic;
 
 use anyhow::{bail, Result};
 
-use etcd_client::{Client, GetOptions};
+use clap::Parser;
+use etcd_client::{Client, ConnectOptions, GetOptions};
 use futures::TryFutureExt;
 
 use tokio::{
@@ -11,11 +12,10 @@ use tokio::{
 };
 use tui::Tui;
 
-use crate::components::Component;
-
-use self::{app::App, events::Event};
+use crate::{app::App, cli::Cli, components::Component, events::Event};
 
 mod app;
+mod cli;
 mod components;
 mod events;
 mod tui;
@@ -29,9 +29,13 @@ pub struct SharedState {
 }
 
 impl SharedState {
-    async fn new(event_tx: UnboundedSender<Event>) -> Result<Self> {
+    async fn new(cli: Cli, event_tx: UnboundedSender<Event>) -> Result<Self> {
+        let mut client_conn_opts = ConnectOptions::new();
+        if let Some((user, password)) = cli.credentials() {
+            client_conn_opts = client_conn_opts.with_user(user, password);
+        }
         Ok(Self {
-            etcd_client: Client::connect(["localhost:2379"], None).await?,
+            etcd_client: Client::connect(cli.endpoints, Some(client_conn_opts)).await?,
             event_tx,
         })
     }
@@ -82,8 +86,10 @@ impl SharedState {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let cli = Cli::parse();
+
     let (event_tx, mut event_rx) = unbounded_channel();
-    let shared_state = SharedState::new(event_tx).await?;
+    let shared_state = SharedState::new(cli, event_tx).await?;
     let mut app = App::new(shared_state.clone());
 
     let mut tui = Tui::new()?;

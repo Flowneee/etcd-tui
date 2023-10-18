@@ -1,13 +1,16 @@
 [package]
 name = "etcd-tui"
+description = "Terminal UI client for etcd"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = "1"
 async-trait = "0.1"
+clap = { version = "4", features = ["derive", "env"] }
 crossterm = { version = "0.27", features = ["event-stream"] }
 etcd-client = { version = "0.12", features = ["tls-roots"] }
 futures = "0.3"
