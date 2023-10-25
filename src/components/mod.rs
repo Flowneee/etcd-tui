@@ -1,6 +1,7 @@
 pub use self::{
     confirmation_popup::ConfirmationPopup, context_help::ContextHelp,
-    foreground_task::ForegroundTask, key_selector::KeySelector, value_editor::ValueEditor,
+    foreground_task::ForegroundTask, key_selector::KeySelector, new_key_popup::NewKeyPopup,
+    value_editor::ValueEditor,
 };
 
 use anyhow::Result;
@@ -14,6 +15,7 @@ mod confirmation_popup;
 mod context_help;
 mod foreground_task;
 mod key_selector;
+mod new_key_popup;
 mod value_editor;
 
 #[allow(unused)]

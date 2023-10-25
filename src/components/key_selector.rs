@@ -17,7 +17,7 @@ use crate::{
     SharedState,
 };
 
-use super::{Component, ConfirmationPopup, ForegroundTask};
+use super::{Component, ConfirmationPopup, ForegroundTask, NewKeyPopup};
 
 pub struct KeySelector {
     shared_state: SharedState,
@@ -31,6 +31,7 @@ pub struct KeySelector {
     load_key_list_task: ForegroundTask<Result<Vec<String>>>,
     delete_key_task: ForegroundTask<Result<()>>,
     delete_key_confirmation_popup: Option<ConfirmationPopup>,
+    new_key_popup: Option<NewKeyPopup>,
 }
 
 impl KeySelector {
@@ -45,8 +46,9 @@ impl KeySelector {
 
             get_key_task: ForegroundTask::new("Loading key", shared_state.clone()),
             load_key_list_task: ForegroundTask::new("Loading key list", shared_state.clone()),
-            delete_key_task: ForegroundTask::new("Deleting key list", shared_state),
+            delete_key_task: ForegroundTask::new("Deleting key list", shared_state.clone()),
             delete_key_confirmation_popup: None,
+            new_key_popup: None,
         }
     }
 
@@ -86,6 +88,14 @@ impl KeySelector {
             self.delete_key_confirmation_popup = Some(popup);
         }
     }
+
+    fn prompt_new_key(&mut self) {
+        if self.new_key_popup.is_none() {
+            let mut popup = NewKeyPopup::new(self.shared_state.clone());
+            popup.show();
+            self.new_key_popup = Some(popup);
+        }
+    }
 }
 
 impl Component for KeySelector {
@@ -95,6 +105,9 @@ impl Component for KeySelector {
             key_event!(self.load_key_list_task.handle_key_event(event));
             key_event!(self.delete_key_task.handle_key_event(event));
             if let Some(ref mut x) = self.delete_key_confirmation_popup {
+                key_event!(x.handle_key_event(event));
+            }
+            if let Some(ref mut x) = self.new_key_popup {
                 key_event!(x.handle_key_event(event));
             }
 
@@ -115,6 +128,12 @@ impl Component for KeySelector {
                     ..
                 } => {
                     self.get_selected_key();
+                }
+                Input {
+                    key: Key::Char('n'),
+                    ..
+                } => {
+                    self.prompt_new_key();
                 }
                 Input {
                     key: Key::Delete | Key::Char('d'),
@@ -140,7 +159,10 @@ impl Component for KeySelector {
 
         if let Some(result) = self.get_key_task.try_ready() {
             let (key, value) = result?;
-            let event = Event::KeyLoaded { key, value };
+            let event = Event::KeySelected {
+                key,
+                value: Some(value),
+            };
             self.shared_state.send_event(event)?;
         }
 
@@ -155,6 +177,16 @@ impl Component for KeySelector {
                     self.delete_key();
                 }
                 self.delete_key_confirmation_popup = None;
+            }
+        }
+
+        if let Some(ref mut x) = self.new_key_popup {
+            if let Some(result) = x.status() {
+                if let Some(key) = result.as_done() {
+                    let event = Event::KeySelected { key, value: None };
+                    self.shared_state.send_event(event)?;
+                }
+                self.new_key_popup = None;
             }
         }
 
@@ -181,6 +213,9 @@ impl Component for KeySelector {
             if let Some(ref mut x) = self.delete_key_confirmation_popup {
                 x.draw(frame, rect);
             }
+            if let Some(ref mut x) = self.new_key_popup {
+                x.draw(frame, rect);
+            }
         }
     }
 
@@ -202,9 +237,14 @@ impl Component for KeySelector {
                 return x.context_help();
             }
 
+            if let Some(ref x) = self.new_key_popup {
+                return x.context_help();
+            }
+
             vec![
                 "(Up/Down) scroll list".into(),
                 "(e/Enter) select key".into(),
+                "(n) new key".into(),
                 "(d/Del) delete key".into(),
                 "(Esc) exit".into(),
             ]

@@ -53,7 +53,7 @@ impl App {
                 self.key_selector.show();
                 self.value_editor.hide();
             }
-            Event::KeyLoaded { key, value } => {
+            Event::KeySelected { key, value } => {
                 self.key_selector.hide();
                 self.value_editor.open_key(key, value);
             }

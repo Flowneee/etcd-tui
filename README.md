@@ -1,1 +1,1 @@
-# `etcd-tui` - Terminal UI client for etcd
+# `etcd-tui` - Terminal client for etcd

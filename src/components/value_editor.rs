@@ -20,7 +20,7 @@ pub struct ValueEditor {
     is_in_editing_mode: bool,
     editor_textarea: TextArea<'static>,
     key: String,
-    original_key_value: String,
+    original_key_value: Option<String>,
 
     confirmation_popup: Option<ConfirmationPopup>,
     put_key_task: ForegroundTask<Result<()>>,
@@ -36,7 +36,7 @@ impl ValueEditor {
             is_in_editing_mode: false,
             editor_textarea: TextArea::new(vec![]),
             key: String::new(),
-            original_key_value: String::new(),
+            original_key_value: None,
 
             confirmation_popup: None,
             put_key_task: ForegroundTask::new("Saving key", shared_state),
@@ -47,10 +47,14 @@ impl ValueEditor {
         self.editor_textarea.lines().join("\n")
     }
 
-    pub fn open_key(&mut self, key: String, value: String) {
-        let sanitized_value = value.replace("\r\n", "\n").replace('\r', "\n");
+    pub fn open_key(&mut self, key: String, value: Option<String>) {
+        let sanitized_value = value.map(|x| x.replace("\r\n", "\n").replace('\r', "\n"));
         self.key = key;
-        self.editor_textarea = TextArea::from(sanitized_value.split('\n'));
+        self.editor_textarea = if let Some(x) = sanitized_value.as_deref() {
+            TextArea::from(x.split('\n'))
+        } else {
+            TextArea::new(vec![])
+        };
         self.original_key_value = sanitized_value;
 
         self.show();
@@ -64,7 +68,7 @@ impl ValueEditor {
     }
 
     fn value_has_changed(&self) -> bool {
-        self.editor_content() != self.original_key_value
+        Some(self.editor_content()) != self.original_key_value
     }
 
     fn title_status(&self) -> String {

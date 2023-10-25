@@ -23,7 +23,7 @@ pub enum KeyEventState {
 pub enum Event {
     Tick,
     Keyboard(KeyEvent),
-    KeyLoaded { key: String, value: String },
+    KeySelected { key: String, value: Option<String> },
     KeyEditDone,
     Tui(CrosstermEvent),
     Quit(Result<()>),

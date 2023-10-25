@@ -1,6 +1,6 @@
 [package]
 name = "etcd-tui"
-description = "Terminal UI client for etcd"
+description = "Terminal client for etcd"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
